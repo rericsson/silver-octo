@@ -18,10 +18,42 @@ def get_oauth_session():
     oauth.fetch_token(token_url=token_url, client_id=client_id, client_secret=client_secret)
     return oauth
 
+def in_asset_central(path: str, internalId: str):
+    """ check if item exists in Asset Central """
+    query = f"{path}?$filter=internalId+eq+'{internalId}'"
+    res = get_oauth_session().get(base_url + query)
+    try:
+        ac_id = json.loads(res.content)[0]["id"]
+    except IndexError:
+        ac_id = False
+    return res.status_code, ac_id
+
+def insert_asset_central(path: str, internalId: str, item: Dict):
+    """ insert item into Asset Central """
+    status_code, exists = in_asset_central(path, internalId)
+
+    if exists:
+        raise ElementAlreadyExists
+    else:
+        res = get_oauth_session().post(base_url + path, json=item)
+        res_val = json.loads(res.content)
+        return status_code, res_val["id"]
+
+def delete_asset_central(path: str, internalId: str):
+    status_code, ac_id = in_asset_central(path, internalId)
+    if ac_id:
+        res = get_oauth_session().delete(base_url + f"{path}/{ac_id}")
+        return res.status_code, json.loads(res.content)
+    else:
+        raise ElementDoesNotExist
+
 
 class ElementAlreadyExists(Exception):
     """ The element specified for insert already exists in asset central """
     pass
+
+class ElementDoesNotExist(Exception):
+    """ The element specified does not exist in Asset Central """
 
 
 @dataclass
@@ -29,34 +61,4 @@ class IndicatorGroup:
     descriptions: List[Dict]
     internalId: str
 
-    def in_asset_central(self):
-        query = f"/indicatorgroups?$filter=internalId+eq+'{self.internalId}'"
-        res = get_oauth_session().get(base_url + query)
-        res_list = json.loads(res.content)
-        if len(res_list) == 0:
-            # not there
-            return False
-        else:
-            # get the id and assign it
-            res_val = json.loads(res.content)
-            self.id = res_val[0]["id"]
-            return True
-
-    def insert_asset_central(self):
-        if self.in_asset_central():
-            # can't insert
-            raise ElementAlreadyExists
-        else:
-            res = get_oauth_session().post(base_url + "/indicatorgroups", json=self.__dict__)
-            res_val = json.loads(res.content)
-            self.id = res_val["id"]
-            return self.id
-
-    def delete_asset_central(self):
-        if self.in_asset_central():
-            # delete it
-            res = get_oauth_session().delete(base_url + f"/indicatorgroups/{self.id}")
-            return res.status_code, json.loads(res.content)
-        else:
-            raise ElementDoesNotExist
 
