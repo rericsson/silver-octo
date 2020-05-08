@@ -1,10 +1,12 @@
 import json
 
 from dataclasses import dataclass
+from dataclasses_json import dataclass_json, LetterCase
 from typing import Dict, List
 
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
+from requests import Request, Session
 
 client_id = 'sb-85c59c29-88eb-40d8-bbbf-ad2d007c92e8!b16149|ac_broker_poc!b1537'
 client_secret = 'dvXu5EuQ+M21MOtOF83B550jGZA='
@@ -19,29 +21,45 @@ def get_oauth_session():
     return oauth
 
 def in_asset_central(path: str, internalId: str):
-    """ check if item exists in Asset Central """
+    """ check if item exists in Asset Central
+        arguments:
+            path: string path for AC object (e.g. /indicators)
+            internalId: string id defined for object
+        returns:
+            status_code: status code of the request
+            exists: True if it is in AC, False if not
+            ac_id: asset central id
+    """
     query = f"{path}?$filter=internalId+eq+'{internalId}'"
     res = get_oauth_session().get(base_url + query)
+    ac_id = ""
     try:
         ac_id = json.loads(res.content)[0]["id"]
+        exists = True
     except IndexError:
-        ac_id = False
-    return res.status_code, ac_id
+        exists = False
+    return res.status_code, exists, ac_id
 
-def insert_asset_central(path: str, internalId: str, item: Dict):
-    """ insert item into Asset Central """
-    status_code, exists = in_asset_central(path, internalId)
+def insert_asset_central(path: str, internalId: str, data: str):
+    """ insert item into Asset Central
+        arguments:
+            path: string path for AC object (e.g. /indicators)
+            internalId: string id defined for object
+            data: string JSON representing the object to be created
+    """
+    status_code, exists, ac_id = in_asset_central(path, internalId)
 
     if exists:
         raise ElementAlreadyExists
     else:
-        res = get_oauth_session().post(base_url + path, json=item)
+        s = get_oauth_session()
+        res = s.request("POST", base_url+path, data=data, headers={"Content-Type": "application/json"})
         res_val = json.loads(res.content)
         return status_code, res_val["id"]
 
 def delete_asset_central(path: str, internalId: str):
-    status_code, ac_id = in_asset_central(path, internalId)
-    if ac_id:
+    status_code, exists, ac_id = in_asset_central(path, internalId)
+    if exists:
         res = get_oauth_session().delete(base_url + f"{path}/{ac_id}")
         return res.status_code, json.loads(res.content)
     else:
@@ -56,9 +74,38 @@ class ElementDoesNotExist(Exception):
     """ The element specified does not exist in Asset Central """
 
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class IndicatorGroup:
-    descriptions: List[Dict]
-    internalId: str
+class Description():
+    short: str
+    long: str
+    language: str = "en"
 
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class IndicatorGroup():
+    descriptions: List[Description]
+    internal_id: str
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class IndicatorType():
+    type: str = "IndicatorType"
+    code: str = "1"
+    language_iso_code: str = "en"
+    description: str = "measured"
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Indicator():
+    descriptions: List[Description]
+    internal_id: str
+    indicator_type: List[IndicatorType]
+    data_type: str = "numeric"
+    aggregation_concept: str = "6"
+    expected_behaviour: str = "3"
+    indicator_category: str = "1"
 
