@@ -55,6 +55,9 @@ def insert_asset_central(path: str, internalId: str, data: str):
         s = get_oauth_session()
         res = s.request("POST", base_url+path, data=data, headers={"Content-Type": "application/json"})
         res_val = json.loads(res.content)
+        # template (at least) returns a list from post so need to check if we have a list
+        if isinstance(res_val, List):
+            return status_code, res_val[0]["id"]
         return status_code, res_val["id"]
 
 def delete_asset_central(path: str, internalId: str):
@@ -87,7 +90,7 @@ class Description():
 class IndicatorGroup():
     descriptions: List[Description]
     internal_id: str
-
+    indicators: List[str]
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -108,4 +111,14 @@ class Indicator():
     aggregation_concept: str = "6"
     expected_behaviour: str = "3"
     indicator_category: str = "1"
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Template():
+    descriptions: List[Description]
+    internal_id: str
+    indicator_groups: List[str]
+    industry_standards: List[str]
+    type: str = "3"
 
