@@ -112,13 +112,20 @@ class Indicator():
     expected_behaviour: str = "3"
     indicator_category: str = "1"
 
+""" used to create required format for indicator and attribute groups """
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class IdString():
+    id: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Template():
     descriptions: List[Description]
     internal_id: str
-    indicator_groups: List[str]
-    industry_standards: List[str]
+    indicator_groups: List[IdString]
+    industry_standards: List[str] # will need an object here - this won't be the right json
+    attribute_groups: List[IdString]
     type: str = "3"
+
 

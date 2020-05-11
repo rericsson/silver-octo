@@ -55,7 +55,7 @@ def test_indicator_group():
 
 def create_template():
     description = Description("template description", "template long description")
-    template = Template([description], tem_internal_id, [], [])
+    template = Template([description], tem_internal_id, [], [], [])
     return template
 
 def test_template():
@@ -67,6 +67,7 @@ def test_template():
     assert content["descriptions"][0]["language"] == "en"
     assert content["indicatorGroups"] == []
     assert content["industryStandards"] == []
+    assert content["attributeGroups"] == []
 
 
 
@@ -132,6 +133,7 @@ def test_template_exists_before_create():
 
 def test_create_template():
     template = create_template()
+    template.indicator_groups = [ IdString("ED5D78C2A79F4EE6A54714E87496ADB4") ]
     res_code, res = insert_asset_central(tem_path, tem_internal_id, template.to_json())
     assert res_code == 200
     assert res
@@ -139,4 +141,34 @@ def test_create_template():
 def test_delete_template():
     res_code, res_list = delete_asset_central(tem_path, tem_internal_id)
     assert res_code == 200
+
+
+def test_template_with_indicators_and_group():
+    # create an indicator
+    indicator = create_indicator()
+    res_code, res = insert_asset_central(ind_path, ind_internal_id, indicator.to_json())
+    assert res_code == 200
+    ind_ac_id = res
+    # create indicator group with that indicator
+    indicator_group = create_indicator_group()
+    indicator_group.indicators = [ ind_ac_id ]
+    res_code, res = insert_asset_central(ig_path, ig_internal_id, indicator_group.to_json())
+    assert res_code == 200
+    ind_group_ac_id = res
+    # create template with that indicator group
+    template = create_template()
+    template.indicator_groups = [ IdString(ind_group_ac_id) ]
+    res_code, res = insert_asset_central(tem_path, tem_internal_id, template.to_json())
+    assert res_code == 200
+    # delete the template
+    res_code, res_list = delete_asset_central(tem_path, tem_internal_id)
+    assert res_code == 200
+    # delete the indicator group
+    res_code, res_list = delete_asset_central(ig_path, ig_internal_id)
+    assert res_code == 200
+    # delete the indicator
+    res_code, res_list = delete_asset_central(ind_path, ind_internal_id)
+    assert res_code == 200
+
+
 
