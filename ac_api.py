@@ -131,4 +131,19 @@ class Template():
     attribute_groups: List[IdString]
     type: str = "3"
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class PrimaryTemplate():
+    id: str
+    primary: bool = True
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Model():
+    descriptions: List[Description]
+    internal_id: str
+    templates: List[PrimaryTemplate]
+    organization_ID: str
+    equipment_tracking: str = "1"
 

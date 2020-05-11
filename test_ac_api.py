@@ -6,8 +6,10 @@ ig_path = "/indicatorgroups"
 ig_internal_id = "IG1"
 ind_path = "/indicators"
 ind_internal_id = "IND1"
-tem_internal_id = "TEM1"
 tem_path = "/templates"
+tem_internal_id = "TEM1"
+mod_path = "/models"
+mod_internal_id = "MOD1"
 
 # make sure the authorization code works
 def test_auth():
@@ -69,7 +71,20 @@ def test_template():
     assert content["industryStandards"] == []
     assert content["attributeGroups"] == []
 
+def create_model():
+    description = Description("model description", "model long description")
+    model = Model([description], mod_internal_id, [PrimaryTemplate("5C5A3AC52DFD4FD6A77726E39104F9ED")], "BC0D934611A24E28A7B56888E55BB9F5")
+    return model
 
+def test_model():
+    model= create_model()
+    content = json.loads(model.to_json())
+    assert content["internalId"] == mod_internal_id
+    assert content["descriptions"][0]["short"] == "model description"
+    assert content["descriptions"][0]["long"] == "model long description"
+    assert content["descriptions"][0]["language"] == "en"
+    assert content["templates"][0]["id"] == "5C5A3AC52DFD4FD6A77726E39104F9ED"
+    assert content["templates"][0]["primary"] == True
 
 # asset central tests
 def test_indicator_exists_before_create():
