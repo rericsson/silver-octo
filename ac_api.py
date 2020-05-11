@@ -1,17 +1,20 @@
 import json
+import os
 
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
+from dotenv import load_dotenv
 from typing import Dict, List
-
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 from requests import Request, Session
 
-client_id = 'sb-85c59c29-88eb-40d8-bbbf-ad2d007c92e8!b16149|ac_broker_poc!b1537'
-client_secret = 'dvXu5EuQ+M21MOtOF83B550jGZA='
-base_url = 'https://ac-poc.cfapps.eu10.hana.ondemand.com/ain/services/api/v1'
-token_url = 'https://vestatest.authentication.eu10.hana.ondemand.com/oauth/token'
+# get the Asset Central config
+load_dotenv()
+client_id = os.getenv("CLIENT_ID")
+client_secret = os.getenv("CLIENT_SECRET")
+base_url = os.getenv("BASE_URL")
+token_url = os.getenv("TOKEN_URL")
 
 def get_oauth_session():
     """call the service to get an OAuth2 token and authenticate"""
