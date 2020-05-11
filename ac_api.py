@@ -37,7 +37,12 @@ def in_asset_central(path: str, internalId: str):
     res = get_oauth_session().get(base_url + query)
     ac_id = ""
     try:
-        ac_id = json.loads(res.content)[0]["id"]
+        ac_object = json.loads(res.content)[0]
+        # model returns modelId instead of id
+        if "id" in ac_object:
+            ac_id = ac_object["id"]
+        else:
+            ac_id = ac_object["modelId"]
         exists = True
     except IndexError:
         exists = False
@@ -61,15 +66,46 @@ def insert_asset_central(path: str, internalId: str, data: str):
         # template (at least) returns a list from post so need to check if we have a list
         if isinstance(res_val, List):
             return status_code, res_val[0]["id"]
-        return status_code, res_val["id"]
+        # model returns modelId instead of id
+        if "id" in res_val:
+            return status_code, res_val["id"]
+        else:
+            return status_code, res_val["modelId"]
+
 
 def delete_asset_central(path: str, internalId: str):
+    """ delete item from Asset Central
+        arguments:
+            path: string path for AC object (e.g. /indicators)
+            internalId: string id for the object
+        returns:
+            status_code: HTTP code (200 if delete is successful)
+            res.content: results from the delete
+    """
     status_code, exists, ac_id = in_asset_central(path, internalId)
     if exists:
         res = get_oauth_session().delete(base_url + f"{path}/{ac_id}")
         return res.status_code, json.loads(res.content)
     else:
         raise ElementDoesNotExist
+
+def delete_asset_central_model(path: str, internalId: str):
+    """ delete model from Asset Central
+        arguments:
+            path: string path for AC object (e.g. /indicators)
+            internalId: string id for the object
+        returns:
+            status_code: HTTP code (204 if delete is successful)
+    """
+    status_code, exists, ac_id = in_asset_central(path, internalId)
+    if exists:
+        url = base_url + f"{path}({ac_id})"
+        res = get_oauth_session().delete(url)
+        return res.status_code
+    else:
+        raise ElementDoesNotExist
+
+
 
 
 class ElementAlreadyExists(Exception):
@@ -144,6 +180,6 @@ class Model():
     descriptions: List[Description]
     internal_id: str
     templates: List[PrimaryTemplate]
-    organization_ID: str
+    organizationID: str # this is an inconsistent name in the API
     equipment_tracking: str = "1"
 

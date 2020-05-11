@@ -80,6 +80,7 @@ def test_model():
     model= create_model()
     content = json.loads(model.to_json())
     assert content["internalId"] == mod_internal_id
+    assert content["organizationID"] == "BC0D934611A24E28A7B56888E55BB9F5"
     assert content["descriptions"][0]["short"] == "model description"
     assert content["descriptions"][0]["long"] == "model long description"
     assert content["descriptions"][0]["language"] == "en"
@@ -157,6 +158,14 @@ def test_delete_template():
     res_code, res_list = delete_asset_central(tem_path, tem_internal_id)
     assert res_code == 200
 
+def test_create_model():
+    model = create_model()
+    res_code, res = insert_asset_central(mod_path, mod_internal_id, model.to_json())
+    assert res_code == 200
+
+def test_delete_model():
+    res_code = delete_asset_central_model(mod_path, mod_internal_id)
+    assert res_code == 204
 
 def test_template_with_indicators_and_group():
     # create an indicator
