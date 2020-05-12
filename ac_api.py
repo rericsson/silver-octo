@@ -23,6 +23,8 @@ def get_oauth_session():
     oauth.fetch_token(token_url=token_url, client_id=client_id, client_secret=client_secret)
     return oauth
 
+
+# should probably refactor this to template (or something like that since it is the template part of the API)
 def in_asset_central(path: str, internalId: str):
     """ check if item exists in Asset Central
         arguments:
@@ -48,6 +50,48 @@ def in_asset_central(path: str, internalId: str):
         exists = False
     return res.status_code, exists, ac_id
 
+def model_in_asset_central(internalId: str):
+    """ check if model exists in Asset Central
+        arguments:
+            internalId: string id defined for object
+        returns:
+            status_code: status code of the request
+            exists: True if it is in AC, False if not
+            ac_id: asset central id
+    """
+    query = f"/models?$filter=internalId+eq+'{internalId}'"
+    res = get_oauth_session().get(base_url + query)
+    ac_id = ""
+    try:
+        ac_object = json.loads(res.content)[0]
+        ac_id = ac_object["modelId"]
+        exists = True
+    except IndexError:
+        exists = False
+    return res.status_code, exists, ac_id
+
+def equipment_in_asset_central(internalId: str):
+    """ check if equipment exists in Asset Central
+        arguments:
+            internalId: string id defined for object
+        returns:
+            status_code: status code of the request
+            exists: True if it is in AC, False if not
+            ac_id: asset central id
+    """
+    query = f"/equipment?$filter=internalId+eq+'{internalId}'"
+    res = get_oauth_session().get(base_url + query)
+    ac_id = ""
+    try:
+        ac_object = json.loads(res.content)[0]
+        ac_id = ac_object["equipmentId"]
+        exists = True
+    except IndexError:
+        exists = False
+    return res.status_code, exists, ac_id
+
+
+# refactor to template as above
 def insert_asset_central(path: str, internalId: str, data: str):
     """ insert item into Asset Central
         arguments:
@@ -73,6 +117,27 @@ def insert_asset_central(path: str, internalId: str, data: str):
             return status_code, res_val["modelId"]
 
 
+# add a similar one for model
+def equipment_insert_asset_central(internalId: str, data: str):
+    """ insert equipment into Asset Central
+        arguments:
+            internalId: string id defined for object
+            data: string JSON representing the object to be created
+    """
+    status_code, exists, ac_id = equipment_in_asset_central(internalId)
+
+    if exists:
+        raise ElementAlreadyExists
+    else:
+        s = get_oauth_session()
+        res = s.request("POST", base_url+"/equipment", data=data, headers={"Content-Type": "application/json"})
+        if res.status_code != 200:
+            raise ElementCouldNotBeCreated
+        res_val = json.loads(res.content)
+        return res_val["equipmentId"]
+
+
+# refactor to template
 def delete_asset_central(path: str, internalId: str):
     """ delete item from Asset Central
         arguments:
@@ -89,24 +154,36 @@ def delete_asset_central(path: str, internalId: str):
     else:
         raise ElementDoesNotExist
 
-def delete_asset_central_model(path: str, internalId: str):
+
+def delete_asset_central_model(internalId: str):
     """ delete model from Asset Central
         arguments:
-            path: string path for AC object (e.g. /indicators)
             internalId: string id for the object
         returns:
             status_code: HTTP code (204 if delete is successful)
     """
-    status_code, exists, ac_id = in_asset_central(path, internalId)
+    status_code, exists, ac_id = model_in_asset_central(internalId)
     if exists:
-        url = base_url + f"{path}({ac_id})"
+        url = base_url + f"/models({ac_id})"
         res = get_oauth_session().delete(url)
         return res.status_code
     else:
         raise ElementDoesNotExist
 
-
-
+def delete_asset_central_equipment(internalId: str):
+    """ delete equipment from Asset Central
+        arguments:
+            internalId: string id for the object
+        returns:
+            status_code: HTTP code (204 if delete is successful)
+    """
+    status_code, exists, ac_id = equipment_in_asset_central(internalId)
+    if exists:
+        url = base_url + f"/equipment({ac_id})"
+        res = get_oauth_session().delete(url)
+        return res.status_code
+    else:
+        raise ElementDoesNotExist
 
 class ElementAlreadyExists(Exception):
     """ The element specified for insert already exists in asset central """
@@ -114,7 +191,11 @@ class ElementAlreadyExists(Exception):
 
 class ElementDoesNotExist(Exception):
     """ The element specified does not exist in Asset Central """
+    pass
 
+class ElementCouldNotBeCreated(Exception):
+    """ The element could not be created (probably an issue with dependency) """
+    pass
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -182,4 +263,18 @@ class Model():
     templates: List[PrimaryTemplate]
     organizationID: str # this is an inconsistent name in the API
     equipment_tracking: str = "1"
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Equipment():
+    descriptions: List[Description]
+    internal_id: str
+    operatorID: str
+    model_id: str
+    model_known: bool = True
+    sourceBPRole: str = "1"
+    life_cycle: str = "2"
+
+
 

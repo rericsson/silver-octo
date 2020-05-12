@@ -2,6 +2,8 @@ import json
 
 from ac_api import *
 
+
+org_id = "BC0D934611A24E28A7B56888E55BB9F5"
 ig_path = "/indicatorgroups"
 ig_internal_id = "IG1"
 ind_path = "/indicators"
@@ -10,6 +12,8 @@ tem_path = "/templates"
 tem_internal_id = "TEM1"
 mod_path = "/models"
 mod_internal_id = "MOD1"
+equip_path = "/equipment"
+equip_internal_id = "EQU1"
 
 # make sure the authorization code works
 def test_auth():
@@ -73,19 +77,38 @@ def test_template():
 
 def create_model():
     description = Description("model description", "model long description")
-    model = Model([description], mod_internal_id, [PrimaryTemplate("5C5A3AC52DFD4FD6A77726E39104F9ED")], "BC0D934611A24E28A7B56888E55BB9F5")
+    model = Model([description], mod_internal_id, [PrimaryTemplate("5C5A3AC52DFD4FD6A77726E39104F9ED")], org_id)
     return model
 
 def test_model():
-    model= create_model()
+    model = create_model()
     content = json.loads(model.to_json())
     assert content["internalId"] == mod_internal_id
-    assert content["organizationID"] == "BC0D934611A24E28A7B56888E55BB9F5"
+    assert content["organizationID"] == org_id
     assert content["descriptions"][0]["short"] == "model description"
     assert content["descriptions"][0]["long"] == "model long description"
     assert content["descriptions"][0]["language"] == "en"
     assert content["templates"][0]["id"] == "5C5A3AC52DFD4FD6A77726E39104F9ED"
     assert content["templates"][0]["primary"] == True
+
+def create_equipment():
+    description = Description("equipment description", "equipment long description")
+    equip = Equipment([description], equip_internal_id, org_id, "7D3E155E436044ACA0EC40C902189DAE" )
+    return equip
+
+def test_equipment():
+    equip = create_equipment()
+    content = json.loads(equip.to_json())
+    assert content["internalId"] == equip_internal_id
+    assert content["operatorID"] == org_id
+    assert content["descriptions"][0]["short"] == "equipment description"
+    assert content["descriptions"][0]["long"] == "equipment long description"
+    assert content["descriptions"][0]["language"] == "en"
+    assert content["modelId"] == "7D3E155E436044ACA0EC40C902189DAE"
+    assert content["sourceBPRole"] == "1"
+    assert content["modelKnown"] == True
+    assert content["lifeCycle"] == "2"
+
 
 # asset central tests
 def test_indicator_exists_before_create():
@@ -153,8 +176,6 @@ def test_create_template():
     res_code, res = insert_asset_central(tem_path, tem_internal_id, template.to_json())
     assert res_code == 200
     assert res
-
-def test_delete_template():
     res_code, res_list = delete_asset_central(tem_path, tem_internal_id)
     assert res_code == 200
 
@@ -162,12 +183,19 @@ def test_create_model():
     model = create_model()
     res_code, res = insert_asset_central(mod_path, mod_internal_id, model.to_json())
     assert res_code == 200
-
-def test_delete_model():
-    res_code = delete_asset_central_model(mod_path, mod_internal_id)
+    res_code = delete_asset_central_model(mod_internal_id)
     assert res_code == 204
 
-def test_template_with_indicators_and_group():
+def test_create_equipment():
+    equip = create_equipment()
+    equip.model_id = "7D3E155E436044ACA0EC40C902189DAE"
+    equip_id = equipment_insert_asset_central(equip_internal_id, equip.to_json())
+    assert len(equip_id) == 32
+    res_code = delete_asset_central_equipment(equip_internal_id)
+    assert res_code == 204
+
+
+def test_all():
     # create an indicator
     indicator = create_indicator()
     res_code, res = insert_asset_central(ind_path, ind_internal_id, indicator.to_json())
@@ -184,6 +212,25 @@ def test_template_with_indicators_and_group():
     template.indicator_groups = [ IdString(ind_group_ac_id) ]
     res_code, res = insert_asset_central(tem_path, tem_internal_id, template.to_json())
     assert res_code == 200
+    tem_ac_id = res
+    # create a model
+    model = create_model()
+    model.templates = [PrimaryTemplate(tem_ac_id)]
+    res_code, res = insert_asset_central(mod_path, mod_internal_id, model.to_json())
+    assert res_code == 200
+    mod_ac_id = res
+    # need to publish the model before creating the equipment
+    # create an equipment
+    #equip = create_equipment()
+    #equip.model_id = mod_ac_id
+    #res_code, res = equipment_insert_asset_central(equip_internal_id, equip.to_json())
+    #assert res_code == 200
+    # delete the equipment
+    #res_code = delete_asset_central_equipment(equip_internal_id)
+    #assert res_code == 204
+    # delete the model
+    res_code = delete_asset_central_model(mod_internal_id)
+    assert res_code == 204
     # delete the template
     res_code, res_list = delete_asset_central(tem_path, tem_internal_id)
     assert res_code == 200
