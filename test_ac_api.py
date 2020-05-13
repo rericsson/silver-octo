@@ -186,6 +186,17 @@ def test_create_model():
     res_code = delete_asset_central_model(mod_internal_id)
     assert res_code == 204
 
+def test_create_and_publish_model():
+    model = create_model()
+    res_code, res = insert_asset_central(mod_path, mod_internal_id, model.to_json())
+    assert res_code == 200
+    res_code = model.publish()
+    assert res_code == 200
+    res_code = delete_asset_central_model(mod_internal_id)
+    assert res_code == 204
+
+
+
 def test_create_equipment():
     equip = create_equipment()
     equip.model_id = "7D3E155E436044ACA0EC40C902189DAE"
@@ -220,14 +231,16 @@ def test_all():
     assert res_code == 200
     mod_ac_id = res
     # need to publish the model before creating the equipment
+    res_code = model.publish()
+    assert res_code == 200
     # create an equipment
-    #equip = create_equipment()
-    #equip.model_id = mod_ac_id
-    #res_code, res = equipment_insert_asset_central(equip_internal_id, equip.to_json())
-    #assert res_code == 200
+    equip = create_equipment()
+    equip.model_id = mod_ac_id
+    res = equipment_insert_asset_central(equip_internal_id, equip.to_json())
+    assert len(res) == 32
     # delete the equipment
-    #res_code = delete_asset_central_equipment(equip_internal_id)
-    #assert res_code == 204
+    res_code = delete_asset_central_equipment(equip_internal_id)
+    assert res_code == 204
     # delete the model
     res_code = delete_asset_central_model(mod_internal_id)
     assert res_code == 204

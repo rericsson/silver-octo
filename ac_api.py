@@ -264,6 +264,13 @@ class Model():
     organizationID: str # this is an inconsistent name in the API
     equipment_tracking: str = "1"
 
+    def publish(self):
+        _, exists, object_id = model_in_asset_central(self.internal_id)
+        if exists:
+            url = base_url + f"/models({object_id})/publish"
+            res = get_oauth_session().put(url)
+            return res.status_code
+
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
