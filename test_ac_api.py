@@ -20,17 +20,17 @@ equip_internal_id = "EQU1"
 # create the objects with sample data
 def create_indicator():
     description = Description("indicator description", "indicator description")
-    indicator = Indicator(ind_internal_id, description)
+    indicator = Indicator(internalId=ind_internal_id, description=description)
     return indicator
 
 def create_indicator_group():
     description = Description("short description", "long description")
-    indicator_group = IndicatorGroup(ig_internal_id, description)
+    indicator_group = IndicatorGroup(internalId=ig_internal_id, description=description)
     return indicator_group
 
 def create_template():
     description = Description("template description", "template long description")
-    template = Template(tem_internal_id,description )
+    template = Template(internalId=tem_internal_id, description=description )
     return template
 
 def create_model():

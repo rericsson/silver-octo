@@ -37,22 +37,6 @@ class Description():
     short: str = ""
     long: str = ""
 
-@dataclass_json
-@dataclass
-class Definition:
-    """ Root class for all of the AC template objects (indicator, indicator group, template)
-
-    Uses camelCase for easier serialization
-
-    Attributes:
-        internalId - user defined id on AC
-        description - description object
-        id - AC defined id. Used to understand if object has been created in AC or not
-    """
-    internalId: str
-    description: Description
-    id: str = ""
-
 
 @dataclass_json
 @dataclass
@@ -69,12 +53,15 @@ def indicator_type_factory():
 
 @dataclass_json
 @dataclass
-class Indicator(Definition):
+class Indicator():
     """ Indicator as defined in AC
 
     The fields are best defined in AC and can mirrored here
 
     """
+    id: str = ""
+    internalId: str = ""
+    description: Description = Description
     indicatorType: List[IndicatorType] = field(default_factory=indicator_type_factory)
     dataType: str = "numeric"
     aggregationConcept: str = "6"
@@ -138,7 +125,10 @@ class IdString():
 
 @dataclass_json
 @dataclass
-class IndicatorGroup(Definition):
+class IndicatorGroup():
+    id: str = ""
+    internalId: str = ""
+    description: Description = Description
     indicators: List[str] = field(default_factory=list)
 
     def insert(self):
@@ -191,17 +181,32 @@ class IndicatorGroup(Definition):
 
 @dataclass_json
 @dataclass
-class Template(Definition):
+class Template():
+    id: str = ""
+    internalId: str = ""
+    description: Description = Description
     indicatorGroups: List[IdString] = field(default_factory=list)
     industryStandards: List[str] = field(default_factory=list)
     attributeGroups: List[IdString] = field(default_factory=list)
     type: str = "3"
-
+    parentId: str = ""
+    source: str = ""
+    isSourceActive: str = ""
+    shortDescription: str = ""
+    createdOn: str = ""
+    changedOn: str = ""
+    sourceSearchTerms: str = ""
+    noOfChildCategory: str = ""
+    noOfModels: str = ""
+    standardIDs: str = ""
+    typeCode: str = ""
 
     def insert(self):
         """ inserts the template into AC """
         url = base_url + "/templates"
-        data = self.to_json()
+        # modify schema to not serialize unecessary fields
+        schema = self.schema(only=["internalId", "description", "attributeGroups", "type"])
+        data = schema.dumps(self)
         s = get_oauth_session()
         res = s.request("POST", url, data=data, headers={"Content-Type": "application/json"})
         status_code = res.status_code
@@ -240,16 +245,12 @@ class Template(Definition):
         """
         url = base_url + f"/templates?$filter=internalId+eq+'{internal_id}'"
         res = get_oauth_session().get(url)
-        # if we get a successful result and the internalId matches then we load the template
         if res.status_code == 200:
-            # AC is not consistent in format: the descriptions are just properties not an object
-            # The returned dictionary has to be hacked up to manually create the template. Ugh.
             d = res.json()[0]
-            description = Description(d["shortDescription"], d["description"])
-            template = Template(internalId=d["internalId"], description=description, id=d["id"] )
-            return template
+            return Template(**d)
         else:
             raise ValueError
+
 
 @dataclass_json
 @dataclass
