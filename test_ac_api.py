@@ -5,6 +5,7 @@ from ac_api import *
 
 
 org_id = "BC0D934611A24E28A7B56888E55BB9F5"
+model_id = "7D3E155E436044ACA0EC40C902189DAE"
 ig_path = "/indicatorgroups"
 ig_internal_id = "IG1"
 ind_path = "/indicators"
@@ -33,15 +34,16 @@ def create_template():
     return template
 
 def create_model():
-    description = Description("model description", "model long description")
+    description = "model description"
     model = Model(internalId=mod_internal_id, description=description,
             templates=[PrimaryTemplate("5C5A3AC52DFD4FD6A77726E39104F9ED")],
             organizationID=org_id)
     return model
 
 def create_equipment():
-    description = Description("equipment description", "equipment long description")
-    equip = Equipment(equip_internal_id, [description], org_id, "7D3E155E436044ACA0EC40C902189DAE" )
+    description = Description("equipment description")
+    equip = Equipment(internalId=equip_internal_id, description=description,
+            operatorID=org_id, modelId=model_id)
     return equip
 
 # make sure the authorization code works
@@ -136,26 +138,26 @@ def test_model():
     content = json.loads(model.to_json())
     assert content["internalId"] == mod_internal_id
     assert content["organizationID"] == org_id
-    assert content["description"]["short"] == "model description"
-    assert content["description"]["long"] == "model long description"
+    assert content["description"] == "model description"
     assert content["templates"][0]["id"] == "5C5A3AC52DFD4FD6A77726E39104F9ED"
     assert content["templates"][0]["primary"] == True
     # insert
-    #status = model.insert()
-    #assert status == 200
-    #assert len(model.id) == 32
+    status = model.insert()
+    assert status == 200
+    assert len(model.modelId) == 32
     # update
-    #with pytest.raises(NotImplementedError):
-    #    model.update()
+    with pytest.raises(NotImplementedError):
+        model.update()
     # publish
-    #status = model.publish()
-    #assert status == 200
+    status = model.publish()
+    assert status == 200
     # load
     load = Model.load(mod_internal_id)
     assert load.internalId == mod_internal_id
+    assert len(load.modelId) == 32
     # delete
-    status = model.delete()
-    assert status == 200
+    status = load.delete()
+    assert status == 204
 
 
 def test_equipment():
@@ -163,9 +165,7 @@ def test_equipment():
     content = json.loads(equip.to_json())
     assert content["internalId"] == equip_internal_id
     assert content["operatorID"] == org_id
-    assert content["descriptions"][0]["short"] == "equipment description"
-    assert content["descriptions"][0]["long"] == "equipment long description"
-    assert content["descriptions"][0]["language"] == "en"
+    assert content["description"]["short"] == "equipment description"
     assert content["modelId"] == "7D3E155E436044ACA0EC40C902189DAE"
     assert content["sourceBPRole"] == "1"
     assert content["modelKnown"] == True
@@ -173,18 +173,16 @@ def test_equipment():
     # insert
     status = equip.insert()
     assert status == 200
-    assert len(equip.id) == 32
+    assert len(equip.equipmentId) == 32
     # update
-    equip.description.short = "Indicator 1"
-    status = equip.update()
-    assert status == 200
-    assert equip.description.short == "Indicator 1"
+    with pytest.raises(NotImplementedError):
+        equip.update()
     # load
-    load = Equipment.load(ind_internal_id)
+    load = Equipment.load(equip_internal_id)
     assert load.internalId == equip_internal_id
     # delete
-    status = equip.delete()
-    assert status == 200
+    status = load.delete()
+    assert status == 204
 
 def test_all():
     # insert the indicator
@@ -212,19 +210,19 @@ def test_all():
     model.templates = [PrimaryTemplate(tem_ac_id)]
     status = model.insert()
     assert status == 200
-    assert len(model.id) == 32
-    mod_ac_id = model.id
+    assert len(model.modelId) == 32
+    mod_ac_id = model.modelId
     # need to publish the model before creating the equipment
     res_code = model.publish()
     assert res_code == 200
     # create an equipment
     equip = create_equipment()
     equip.model_id = mod_ac_id
-    status = equipment.insert()
+    status = equip.insert()
     assert status == 200
-    assert len(equipment.id) == 32
+    assert len(equip.equipmentId) == 32
     # delete the equipment
-    status = equipment.delete()
+    status = equip.delete()
     assert status == 204
     # delete the model
     status = model.delete()

@@ -33,15 +33,14 @@ class Description():
     Attributes:
         short description
         long description
-        language
     """
-    short: str
-    long: str
+    short: str = ""
+    long: str = ""
 
 @dataclass_json
 @dataclass
 class Definition:
-    """ Root class for all of the AC objects
+    """ Root class for all of the AC template objects (indicator, indicator group, template)
 
     Uses camelCase for easier serialization
 
@@ -264,7 +263,9 @@ def primary_template_factory():
 
 @dataclass_json
 @dataclass
-class Model(Definition):
+class Model():
+    internalId: str = ""
+    description: str = ""
     templates: List[PrimaryTemplate] = field(default_factory=primary_template_factory)
     organizationID: str = ""
     equipmentTracking: str = "1"
@@ -294,7 +295,7 @@ class Model(Definition):
     modelSearchTerms: str = ""
     sourceSearchTerms: str = ""
     manufacturerSearchTerms: str = ""
-    #class: str = ""
+    #class: str = "" - this is part of the AC model, but breaks serialization because it is a Python keyword
     image: str = ""
     isClientValid: bool = True
     consume: str = ""
@@ -303,8 +304,8 @@ class Model(Definition):
         """ publish the model so that equipment can be added
             need to have the id from AC
         """
-        if self.id:
-            url = base_url + f"/models({self.id})/publish"
+        if self.modelId:
+            url = base_url + f"/models({self.modelId})/publish"
             res = get_oauth_session().put(url)
             return res.status_code
         else:
@@ -313,16 +314,15 @@ class Model(Definition):
     def insert(self):
         """ inserts the model into AC """
         url = base_url + "/models"
-        # modify schema to get not serialize unecessary fields
-        schema = self.schema(exclude=["internalId", "description", "templates",
+        # modify schema to not serialize unecessary fields
+        schema = self.schema(only=["internalId", "description", "templates",
             "organizationID", "equipmentTracking"])
         data = schema.dumps(self)
         s = get_oauth_session()
         res = s.request("POST", url, data=data, headers={"Content-Type": "application/json"})
         status_code = res.status_code
         res_val = res.json()
-        print(res_val)
-        self.id = res_val["modelId"]
+        self.modelId = res_val["modelId"]
         return status_code
 
     def update(self):
@@ -331,11 +331,11 @@ class Model(Definition):
 
     def delete(self):
         """ deletes the model from AC """
-        if self.id:
-            url = base_url + f"/models({self.id})"
+        if self.modelId:
+            url = base_url + f"/models({self.modelId})"
             res = get_oauth_session().delete(url)
             if res.status_code == 204:
-                self.id = ""
+                self.modelId = ""
             return res.status_code
         else:
             raise ValueError
@@ -351,177 +351,112 @@ class Model(Definition):
         if res.status_code == 200:
             d = res.json()[0]
             # remove class as it kills serialization
-            # the design is inconsistent
             # might be able to find a workaroud to load
+            # could rename to class_ and change the name back on serialization
             d.pop("class")
-            print(d)
             return Model(**d)
         else:
             raise ValueError
 
+@dataclass_json
+@dataclass
+class Equipment():
+    equipmentId: str = ""
+    description: Description = Description
+    internalId: str = ""
+    operatorID: str = ""
+    modelId: str = ""
+    modelKnown: bool = True
+    sourceBPRole: str = "1"
+    lifeCycle: str = "2"
+    name: str = ""
+    status: str = ""
+    statusDescription: str = ""
+    version: float = 0.0
+    hasInRevision: str = ""
+    modelName: str = ""
+    shortDescription: str = ""
+    templateId: str = ""
+    subclass: str = ""
+    modelTemplate: str = ""
+    location: str = ""
+    criticalityCode: str = ""
+    criticalityDescription: str = ""
+    manufacturer: str = ""
+    completeness: float = 0.0
+    createdOn: str = ""
+    changedOn: str = ""
+    publishedOn: str = ""
+    serialNumber: str = ""
+    batchNumber: str = ""
+    tagNumber: str = ""
+    lifeCycleDescription: str = ""
+    source: str = ""
+    imageURL: str = ""
+    operator: str = ""
+    coordinates: str = ""
+    installationDate: str = ""
+    equipmentStatus: str = ""
+    buildDate: str = ""
+    isOperatorValid: str = ""
+    modelVersion: float = 0.0
+    soldTo: str = ""
+    image: str = ""
+    consume: str = ""
+    dealer: str = ""
+    serviceProvider: str = ""
+    primaryExternalId: str = ""
+    equipmentSearchTerms: str = ""
+    sourceSearchTerms: str = ""
+    manufacturerSearchTerms: str = ""
+    operatorSearchTerms: str = ""
 
-
-
-# should probably refactor this to template (or something like that since it is the template part of the API)
-def in_asset_central(path: str, internalId: str):
-    """ check if item exists in Asset Central
-        arguments:
-            path: string path for AC object (e.g. /indicators)
-            internalId: string id defined for object
-        returns:
-            status_code: status code of the request
-            exists: True if it is in AC, False if not
-            ac_id: asset central id
-    """
-    query = f"{path}?$filter=internalId+eq+'{internalId}'"
-    res = get_oauth_session().get(base_url + query)
-    ac_id = ""
-    try:
-        ac_object = json.loads(res.content)[0]
-        # model returns modelId instead of id
-        if "id" in ac_object:
-            ac_id = ac_object["id"]
-        else:
-            ac_id = ac_object["modelId"]
-        exists = True
-    except IndexError:
-        exists = False
-    return res.status_code, exists, ac_id
-
-def model_in_asset_central(internalId: str):
-    """ check if model exists in Asset Central
-        arguments:
-            internalId: string id defined for object
-        returns:
-            status_code: status code of the request
-            exists: True if it is in AC, False if not
-            ac_id: asset central id
-    """
-    query = f"/models?$filter=internalId+eq+'{internalId}'"
-    res = get_oauth_session().get(base_url + query)
-    ac_id = ""
-    try:
-        ac_object = json.loads(res.content)[0]
-        ac_id = ac_object["modelId"]
-        exists = True
-    except IndexError:
-        exists = False
-    return res.status_code, exists, ac_id
-
-def equipment_in_asset_central(internalId: str):
-    """ check if equipment exists in Asset Central
-        arguments:
-            internalId: string id defined for object
-        returns:
-            status_code: status code of the request
-            exists: True if it is in AC, False if not
-            ac_id: asset central id
-    """
-    query = f"/equipment?$filter=internalId+eq+'{internalId}'"
-    res = get_oauth_session().get(base_url + query)
-    ac_id = ""
-    try:
-        ac_object = json.loads(res.content)[0]
-        ac_id = ac_object["equipmentId"]
-        exists = True
-    except IndexError:
-        exists = False
-    return res.status_code, exists, ac_id
-
-
-# refactor to template as above
-def insert_asset_central(path: str, internalId: str, data: str):
-    """ insert item into Asset Central
-        arguments:
-            path: string path for AC object (e.g. /indicators)
-            internalId: string id defined for object
-            data: string JSON representing the object to be created
-    """
-    status_code, exists, ac_id = in_asset_central(path, internalId)
-
-    if exists:
-        raise ElementAlreadyExists
-    else:
+    def insert(self):
+        """ inserts the equipment  into AC """
+        url = base_url + "/equipment"
+        # modify schema to not serialize unecessary fields
+        schema = self.schema(only=["internalId", "modelId", "sourceBPRole", "modelKnown",
+            "lifeCycle", "description", "operatorID"])
+        data = schema.dumps(self)
         s = get_oauth_session()
-        res = s.request("POST", base_url+path, data=data, headers={"Content-Type": "application/json"})
-        res_val = json.loads(res.content)
-        # template (at least) returns a list from post so need to check if we have a list
-        if isinstance(res_val, List):
-            return status_code, res_val[0]["id"]
-        # model returns modelId instead of id
-        if "id" in res_val:
-            return status_code, res_val["id"]
+        res = s.request("POST", url, data=data, headers={"Content-Type": "application/json"})
+        status_code = res.status_code
+        res_val = res.json()
+        self.equipmentId = res_val["equipmentId"]
+        return status_code
+
+    def update(self):
+        """ updates the equipment in AC """
+        raise NotImplementedError
+
+    def delete(self):
+        """ deletes the equipment from AC """
+        if self.equipmentId:
+            url = base_url + f"/equipment({self.equipmentId})"
+            res = get_oauth_session().delete(url)
+            if res.status_code == 204:
+                self.modelId = ""
+            return res.status_code
         else:
-            return status_code, res_val["modelId"]
+            raise ValueError
 
-
-# add a similar one for model
-def equipment_insert_asset_central(internalId: str, data: str):
-    """ insert equipment into Asset Central
-        arguments:
-            internalId: string id defined for object
-            data: string JSON representing the object to be created
-    """
-    status_code, exists, ac_id = equipment_in_asset_central(internalId)
-
-    if exists:
-        raise ElementAlreadyExists
-    else:
-        s = get_oauth_session()
-        res = s.request("POST", base_url+"/equipment", data=data, headers={"Content-Type": "application/json"})
-        if res.status_code != 200:
-            raise ElementCouldNotBeCreated
-        res_val = json.loads(res.content)
-        return res_val["equipmentId"]
-
-
-# refactor to template
-def delete_asset_central(path: str, internalId: str):
-    """ delete item from Asset Central
-        arguments:
-            path: string path for AC object (e.g. /indicators)
-            internalId: string id for the object
-        returns:
-            status_code: HTTP code (200 if delete is successful)
-            res.content: results from the delete
-    """
-    status_code, exists, ac_id = in_asset_central(path, internalId)
-    if exists:
-        res = get_oauth_session().delete(base_url + f"{path}/{ac_id}")
-        return res.status_code, json.loads(res.content)
-    else:
-        raise ElementDoesNotExist
-
-
-def delete_asset_central_model(internalId: str):
-    """ delete model from Asset Central
-        arguments:
-            internalId: string id for the object
-        returns:
-            status_code: HTTP code (204 if delete is successful)
-    """
-    status_code, exists, ac_id = model_in_asset_central(internalId)
-    if exists:
-        url = base_url + f"/models({ac_id})"
-        res = get_oauth_session().delete(url)
-        return res.status_code
-    else:
-        raise ElementDoesNotExist
-
-def delete_asset_central_equipment(internalId: str):
-    """ delete equipment from Asset Central
-        arguments:
-            internalId: string id for the object
-        returns:
-            status_code: HTTP code (204 if delete is successful)
-    """
-    status_code, exists, ac_id = equipment_in_asset_central(internalId)
-    if exists:
-        url = base_url + f"/equipment({ac_id})"
-        res = get_oauth_session().delete(url)
-        return res.status_code
-    else:
-        raise ElementDoesNotExist
+    @classmethod
+    def load(cls, internal_id: str):
+        """ load an equiment from AC
+            arguments:
+                internal_id: the internal id for the model
+        """
+        url = base_url + f"/equipment?$filter=internalId+eq+'{internal_id}'"
+        res = get_oauth_session().get(url)
+        if res.status_code == 200:
+            d = res.json()[0]
+            # remove class as it kills serialization
+            # might be able to find a workaroud to load
+            # could rename to class_ and change the name back on serialization
+            d.pop("class")
+            return Equipment(**d)
+        else:
+            raise ValueError
 
 class ElementAlreadyExists(Exception):
     """ The element specified for insert already exists in asset central """
@@ -536,16 +471,6 @@ class ElementCouldNotBeCreated(Exception):
     pass
 
 
-@dataclass_json
-@dataclass
-class Equipment():
-    descriptions: List[Description]
-    internal_id: str
-    operatorID: str
-    model_id: str
-    model_known: bool = True
-    sourceBPRole: str = "1"
-    life_cycle: str = "2"
 
 
 
