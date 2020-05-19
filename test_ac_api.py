@@ -200,7 +200,7 @@ def test_all():
     ind_group_ac_id = indicator_group.id
     # create template with that indicator group
     template = create_template()
-    template.indicator_groups = [ IdString(ind_group_ac_id) ]
+    template.indicatorGroups = [ IdString(ind_group_ac_id) ]
     status = template.insert()
     assert status == 200
     assert len(template.id) == 32
@@ -217,7 +217,7 @@ def test_all():
     assert res_code == 200
     # create an equipment
     equip = create_equipment()
-    equip.model_id = mod_ac_id
+    equip.modelId = mod_ac_id
     status = equip.insert()
     assert status == 200
     assert len(equip.equipmentId) == 32
@@ -237,5 +237,82 @@ def test_all():
     status == indicator.delete()
     assert status == 200
 
+def test_spreadsheet_data():
+    # list for the indicator group
+    tig_indicators = []
+    # create the indicators
+    ind_out_voltage = Indicator(internalId="voltage_out",
+            description=Description("Output voltage"),
+            indicatorColorCode="#f2c637",
+            dimension1="VOLTAG",
+            indicatorUom="V")
+    status = ind_out_voltage.insert()
+    assert status == 200
+    tig_indicators.append(ind_out_voltage.id)
+    ind_in_voltage = Indicator(internalId="voltage_in",
+            description=Description("Input voltage"),
+            indicatorColorCode="#4965a3",
+            dimension1="VOLTAG",
+            indicatorUom="V")
+    status = ind_in_voltage.insert()
+    assert status == 200
+    tig_indicators.append(ind_in_voltage.id)
+    ind_temp = Indicator(internalId="temp_ambient",
+            description=Description("Ambient temperature"),
+            indicatorColorCode="#49a380",
+            dimension1="TEMP",
+            indicatorUom="GC")
+    status = ind_temp.insert()
+    assert status == 200
+    tig_indicators.append(ind_temp.id)
+    # create the indicator group
+    ind_group = IndicatorGroup(internalId="TIG",
+            description=Description("Transformer Indicators"),
+            indicators=tig_indicators)
+    status = ind_group.insert()
+    status == 200
+    # create the template
+    template = Template(internalId="SDT",
+            description=Description("Single Phase Dist Transformers"),
+            indicatorGroups=[IdString(ind_group.id)])
+    status = template.insert()
+    assert status == 200
+    # create the model (looked up ABB org id on AIN)
+    model = Model(internalId="SDT_Model", description="SDT Model",
+            templates=[PrimaryTemplate(template.id)],
+            equipmentTracking="1",
+            organizationID="757A046B716F46F499A94A95C70EFE0A")
+    status = model.insert()
+    assert status == 200
+    # publish the model
+    status = model.publish()
+    assert status == 200
+    # create an equipment
+    equipment = Equipment(internalId="SDT0002",
+            description=Description("SDT 0002"),
+            modelId=model.modelId,
+            operatorID=org_id)
+    status = equipment.insert()
+    assert status == 200
+    breakpoint()
+    # clean up
+    status = equipment.delete()
+    assert status == 204
+    status = model.delete()
+    assert status == 204
+    status = template.delete()
+    assert status == 200
+    status = ind_group.delete()
+    assert status == 200
+    status = ind_out_voltage.delete()
+    assert status == 200
+    status = ind_in_voltage.delete()
+    assert status == 200
+    status = ind_temp.delete()
+    assert status == 200
 
+def test_dimensions():
+    uom = load_dimensions()
+    for u in uom:
+        print(u.dimensionId, u.dimensionDescription, u.unitId, u.unitShortDescription)
 

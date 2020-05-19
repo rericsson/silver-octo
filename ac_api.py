@@ -25,6 +25,28 @@ def get_oauth_session():
     oauth.fetch_token(token_url=token_url, client_id=client_id, client_secret=client_secret)
     return oauth
 
+@dataclass_json
+@dataclass
+class Dimension():
+    dimensionId: str = ""
+    dimensionExternalId: str = ""
+    unitId: str = ""
+    unitExternalId: str = ""
+    dimensionDescription: str = ""
+    unitShortDescription: str = ""
+    unitLongDescription: str = ""
+    unitIsoCode: str = ""
+
+def load_dimensions():
+    url = base_url + f"/uom/dimensions?isFlat=true"
+    res = get_oauth_session().get(url)
+    # if we get a successful result, load the list
+    if res.status_code == 200:
+        dims = res.json()
+        return [Dimension(**d) for d in dims]
+    else:
+        raise ValueError
+
 
 @dataclass_json
 @dataclass
@@ -67,11 +89,19 @@ class Indicator():
     aggregationConcept: str = "6"
     expectedBehaviour: str = "3"
     indicatorCategory: str = "1"
+    indicatorColorCode: str = ""
+    dimension1: str = ""
+    indicatorUom: str = ""
 
     def insert(self):
         """ inserts the indicator into AC """
         url = base_url + "/indicators"
-        data = self.to_json()
+        # modify schema to not serialize dimension1 and indicatorUom unless both are populated (fails on insert)
+        exclude = ["dimension1", "indicatorUom"]
+        if self.dimension1 and self.indicatorUom:
+            exclude = []
+        schema = self.schema(exclude=exclude)
+        data = schema.dumps(self)
         s = get_oauth_session()
         res = s.request("POST", url, data=data, headers={"Content-Type": "application/json"})
         status_code = res.status_code
@@ -83,7 +113,12 @@ class Indicator():
         """ updates the indicator in AC """
         if self.id:
             url = base_url + f"/indicators/{self.id}"
-            data = self.to_json()
+            # modify schema to not serialize dimension1 and indicatorUom unless both are populated
+            exclude = ["dimension1", "indicatorUom"]
+            if self.dimension1 and self.indicatorUom:
+                exclude = []
+            schema = self.schema(exclude=exclude)
+            data = schema.dumps(self)
             s = get_oauth_session()
             res = s.request("PUT", url, data=data, headers={"Content-Type": "application/json"})
             status_code = res.status_code
@@ -205,7 +240,8 @@ class Template():
         """ inserts the template into AC """
         url = base_url + "/templates"
         # modify schema to not serialize unecessary fields
-        schema = self.schema(only=["internalId", "description", "attributeGroups", "type"])
+        schema = self.schema(only=["internalId", "description", "attributeGroups",
+            "indicatorGroups", "type"])
         data = schema.dumps(self)
         s = get_oauth_session()
         res = s.request("POST", url, data=data, headers={"Content-Type": "application/json"})
