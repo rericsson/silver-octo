@@ -95,7 +95,6 @@ class Indicator():
 
     def insert(self):
         """ inserts the indicator into AC """
-        breakpoint()
         url = base_url + "/indicators"
         # modify schema to not serialize dimension1 and indicatorUom unless both are populated (fails on insert)
         exclude = ["id", "dimension1", "indicatorUom"]
