@@ -1,21 +1,46 @@
 import click
 
 from openpyxl import load_workbook
-from ac_api import Description, IndicatorType, Indicator, IndicatorGroup
+from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, IdString, Template
 from mapping import *
+from typing import List
 
 @click.command()
 @click.argument("datafile", type=click.Path(exists=True))
 def cli(datafile):
+    """ Command line interface to load AC data
+
+    Inserts all of the given data into AC.
+    Provides output of progess.
+
+    Args:
+        datafile - xlsx file that contains the data to be loaded
+
+
+    """
     click.echo("Opening %s..." % datafile)
     wb = load_workbook(filename=datafile, read_only=True)
     # check that we have the proper worksheets
     assert wb.sheetnames == ["Indicator", "Indicator Group", "Model Template", "Model", "Equipment"]
 
+    indicators = load_indicators(wb["Indicator"])
+    indicator_groups = load_indicator_groups(indicators, wb["Indicator Group"])
+    templates = load_templates(indicator_groups, wb["Model Template"])
+
+
+def load_indicators(indicator_sheet):
+    """ Loads all of the indicators into AC
+
+    Args:
+        indicator_sheet - worksheet containing the required datafields
+
+    Returns:
+        List of indicators that were loaded
+
+    """
     indicators = []
 
     # open the indicator sheet and load the objects
-    indicator_sheet = wb["Indicator"]
     for row in indicator_sheet.iter_rows(min_row=2, values_only=True):
         indicator = Indicator(internalId=row[IND_INTERNAL_ID],
                                 description=Description(row[IND_DESCRIPTION]),
@@ -38,8 +63,21 @@ def cli(datafile):
         else:
             print(f"sucess...id = {indicator.id}")
 
+    return indicators
+
+def load_indicator_groups(indicators: List[Indicator], ig_sheet):
+    """ Loads all of the indicator groups into AC
+
+    Args:
+        indicators - list of indicators that were loaded
+        ig_sheet - worksheet containing the required datafields
+
+
+    Returns:
+        List of indicator groups that were loaded
+    """
+
     # open the indicator group sheet and load the objects
-    ig_sheet = wb["Indicator Group"]
     # loop through the row and get the distinct indicator group identifiers
     indicator_groups = []
     internal_id = ""
@@ -87,5 +125,80 @@ def cli(datafile):
             print(f"failed...error: {ex}")
         else:
             print(f"success...id = {indicator_group.id}")
+
+    return indicator_groups
+
+def load_templates(indicator_groups, template_sheet):
+    """ Loads all of the templates into AC
+
+    Supports model templates only.
+
+    Args:
+        indicator_groups - list of indicator groups that were loaded
+        template_sheet - worksheet that contains required datafields
+
+    Returns:
+        list of the templates that were loaded
+
+    """
+    # open the template sheet and load the objects
+    # loop through the row and get the distinct template identifiers
+    templates = []
+    internal_id = ""
+    desc = ""
+    template_ig = []
+    breakpoint()
+    for iteration, row in enumerate(template_sheet.iter_rows(min_row=2, values_only=True)):
+        # first iteration
+        if iteration == 0:
+            internal_id = row[TEM_INTERNAL_ID]
+            desc = row[TEM_DESCRIPTION]
+            template_ig.append(row[TEM_INDICATOR_GROUP])
+        else:
+            # new internal id?
+            if internal_id != row[TEM_INTERNAL_ID]:
+                # create template and add to list
+                templates.append(Template(internalId=internal_id,
+                    description=Description(desc), indicatorGroups=template_ig))
+                template_ig = []
+                internal_id = row[TEM_INTERNAL_ID]
+                desc = row[TEM_DESCRIPTION]
+                template_ig.append(row[TEM_INDICATOR_GROUP])
+            else: # same internal id, append the indicator group
+                template_ig.append(row[TEM_INDICATOR_GROUP])
+
+    # out of the loop, we should have at least one indicator group
+    templates.append(Template(internalId=internal_id,
+        description=Description(desc), indicatorGroups=template_ig))
+
+    # get the ids for each indicator group in each template
+    for template in templates:
+        # loop through the temp_ids in the template
+        for iteration, temp_id in enumerate(template.indicatorGroups):
+            for ig in indicator_groups:
+                # get the real id from the indicator group list and replace the temp_id
+                if ig.internalId == temp_id:
+                    template.indicatorGroups[iteration] = IdString(ig.id)
+                    break
+
+    # insert into AC
+    for template in templates:
+        print(f"inserting template {template.internalId}...")
+        try:
+            template.insert()
+        except Exception as ex:
+            print(f"failed...error: {ex}")
+        else:
+            print(f"success...id = {template.id}")
+
+    return templates
+
+pass
+
+def load_models(templates, models):
+    pass
+
+def load_equipment(models, equipment):
+    pass
 
 
