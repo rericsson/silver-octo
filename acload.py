@@ -19,14 +19,19 @@ def cli(datafile):
 
     """
     click.echo("Opening %s..." % datafile)
-    wb = load_workbook(filename=datafile, read_only=True)
+    wb = load_workbook(filename=datafile)
     # check that we have the proper worksheets
     assert wb.sheetnames == ["Indicator", "Indicator Group", "Model Template", "Model", "Equipment"]
 
     indicators = load_indicators(wb["Indicator"])
+    update_worksheet(indicators, wb["Indicator"])
     indicator_groups = load_indicator_groups(indicators, wb["Indicator Group"])
+    update_worksheet(indicator_groups, wb["Indicator Group"])
     templates = load_templates(indicator_groups, wb["Model Template"])
+    update_worksheet(templates, wb["Model Template"])
 
+    # save the changes
+    wb.save(filename=datafile)
 
 def load_indicators(indicator_sheet):
     """ Loads all of the indicators into AC
@@ -147,7 +152,6 @@ def load_templates(indicator_groups, template_sheet):
     internal_id = ""
     desc = ""
     template_ig = []
-    breakpoint()
     for iteration, row in enumerate(template_sheet.iter_rows(min_row=2, values_only=True)):
         # first iteration
         if iteration == 0:
@@ -200,5 +204,21 @@ def load_models(templates, models):
 
 def load_equipment(models, equipment):
     pass
+
+def update_worksheet(asset_central_objects: List, worksheet):
+    """ Update the worksheet with returned IDs in the first column
+
+    Args:
+        asset_central_objects - a list of objects with ids
+        worksheet - the worksheet to be updated
+    """
+    # get the internal ids from the spreadsheet
+    for iteration, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True)):
+        internal_id = row[INTERNAL_ID]
+        for obj in asset_central_objects:
+            if obj.internalId == internal_id:
+                # adjust cells to account for header row and 1-based counting
+                worksheet.cell(column=ID+1, row=iteration+2, value=obj.id)
+                break
 
 
