@@ -5,24 +5,23 @@ from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, IdStri
 from mapping import *
 from typing import List
 
-@click.command()
-@click.argument("datafile", type=click.Path(exists=True))
-def cli(datafile):
-    """ Command line interface to load AC data
+@click.group()
+def cli():
+    pass
 
+
+@cli.command()
+@click.argument("datafile", type=click.Path(exists=True))
+def load(datafile):
+    """ Load AC data from a spreadsheet
     Inserts all of the given data into AC.
-    Provides output of progess.
+    Writes the AC ids back into spreadsheet.
 
     Args:
         datafile - xlsx file that contains the data to be loaded
-
-
     """
     click.echo("Opening %s..." % datafile)
     wb = load_workbook(filename=datafile)
-    # check that we have the proper worksheets
-    assert wb.sheetnames == ["Indicator", "Indicator Group", "Model Template", "Model", "Equipment"]
-
     indicators = load_indicators(wb["Indicator"])
     update_worksheet(indicators, wb["Indicator"])
     indicator_groups = load_indicator_groups(indicators, wb["Indicator Group"])
@@ -32,6 +31,65 @@ def cli(datafile):
 
     # save the changes
     wb.save(filename=datafile)
+
+@cli.command()
+@click.argument("datafile", type=click.Path(exists=True))
+def delete(datafile):
+    """ Delete AC data defined in spreadsheet
+    Requires ids in the first column of each object to be deleted
+
+    Args:
+        datafile - the xlsx file that contains the data to be deleted
+     """
+
+    print(f"Opening {datafile}...")
+    wb = load_workbook(filename=datafile)
+    # do this in the reverse order of the loads due to dependencies
+    template_sheet = wb["Model Template"]
+    for row in template_sheet.iter_rows(min_row=2):
+        if row[ID].value:
+            template = Template(id=row[ID].value)
+            status = template.delete()
+            if status == 200:
+                row[ID].value = ""
+                print(f"Deleted {row[INTERNAL_ID].value}")
+            else:
+                print(f"Could not delete {row[ID].value}")
+
+    indicator_group_sheet = wb["Indicator Group"]
+    previous_id = ""
+    breakpoint()
+    for iteration, row in enumerate(indicator_group_sheet.iter_rows(min_row=2)):
+        # check for duplicate IDs in the column and clear them
+        if previous_id == row[ID].value:
+            row[ID].value = ""
+
+        if row[ID].value:
+            indicator_group = IndicatorGroup(id=row[ID].value)
+            status = indicator_group.delete()
+            if status == 200:
+                previous_id = row[ID].value
+                row[ID].value = ""
+                print(f"Deleted {row[INTERNAL_ID].value}")
+            else:
+                print(f"Could not delete {row[ID].value}")
+
+    indicator_sheet = wb["Indicator"]
+    for row in indicator_sheet.iter_rows(min_row=2):
+        if row[ID].value:
+            indicator = Indicator(id=row[ID].value)
+            status = indicator.delete()
+            if status == 200:
+                row[ID].value = ""
+                print(f"Deleted {row[INTERNAL_ID].value}")
+            else:
+                print(f"Could not delete {row[ID].value}")
+
+
+    # save the changes
+    wb.save(filename=datafile)
+
+
 
 def load_indicators(indicator_sheet):
     """ Loads all of the indicators into AC
