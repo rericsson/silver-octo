@@ -4,7 +4,6 @@ ACLoad uploads data from a specific spreadsheet format into indicators, indicato
 
 ## Installation
 
-These instructions are for Windows 10. The process is slightly different on macOS and Linux.
 Ensure that you have Python installed on your computer.
 Datagen was created with Python 3.8 so that version is best. YMMV with other versions.
 
@@ -24,7 +23,7 @@ That will install the datagen project in your local system. If you would rather 
 
 ```
 virtualenv venv
-.\Scripts\activate
+. venv/bin/activate
 pip install .
 ```
 ## Configuration
