@@ -7,6 +7,7 @@ setup(
         install_requires=[
             "Click",
             "dataclasses-json",
+            "python-dotenv",
             "openpyxl",
             "requests",
             "requests-oauthlib",
