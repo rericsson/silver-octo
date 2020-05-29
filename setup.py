@@ -9,7 +9,7 @@ setup(
             "dataclasses-json",
             "openpyxl",
             "requests",
-            "requests-outhlib",
+            "requests-oauthlib",
             ],
         entry_points="""
             [console_scripts]
