@@ -6,7 +6,7 @@ setup(
         py_modules=["acload"],
         install_requires=[
             "Click",
-            "dataclasses-json"
+            "dataclasses-json",
             "openpyxl",
             "requests",
             "requests-outhlib",
