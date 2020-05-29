@@ -2,7 +2,7 @@ import click
 
 from openpyxl import load_workbook
 from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, \
-    IdString, Template, Model, PrimaryTemplate
+    IdString, Template, Model, PrimaryTemplate, Equipment
 from mapping import *
 from typing import List
 
@@ -32,6 +32,8 @@ def load(datafile):
     update_worksheet(templates, wb["Model Template"])
     models = load_models(templates, wb["Model"])
     update_worksheet(models, wb["Model"])
+    equipment = load_equipment(models, wb["Equipment"])
+    update_worksheet(equipment, wb["Equipment"])
     # save the changes
     wb.save(filename=datafile)
 
@@ -48,6 +50,17 @@ def delete(datafile):
     print(f"Opening {datafile}...")
     wb = load_workbook(filename=datafile)
     # do this in the reverse order of the loads due to dependencies
+    equip_sheet = wb["Equipment"]
+    for row in equip_sheet.iter_rows(min_row=2):
+        if row[ID].value:
+            equip = Equipment(equipmentId=row[ID].value)
+            status = equip.delete()
+            if status == 204:
+                row[ID].value = ""
+                print(f"Deleted {row[INTERNAL_ID].value}")
+            else:
+                print(f"Could not delete {row[ID].value}")
+
     model_sheet = wb["Model"]
     for row in model_sheet.iter_rows(min_row=2):
         if row[ID].value:
@@ -312,8 +325,33 @@ def load_models(templates, model_sheet):
     return models
 
 
-def load_equipment(models, equipment):
-    pass
+def load_equipment(models, equipment_sheet):
+    equipment_list = []
+    for row in equipment_sheet.iter_rows(min_row=2, values_only=True):
+        equipment_list.append(Equipment(internalId=row[EQU_INTERNAL_ID],
+            description=Description(row[EQU_DESCRIPTION]),
+            modelId=row[EQU_MODEL],
+            operatorID=row[EQU_OPERATOR],
+            lifeCycle=row[EQU_LIFECYCLE]))
+
+    for equipment in equipment_list:
+        for model in models:
+            if equipment.modelId == model.internalId:
+                equipment.modelId = model.modelId
+                break
+
+    for equipment in equipment_list:
+        print(f"inserting {equipment.internalId}...")
+        try:
+            equipment.insert()
+        except Exception as ex:
+            print(f"failed...error: {ex}")
+        else:
+            print(f"success...id = {equipment.equipmentId}")
+
+    return equipment_list
+
+
 
 def update_worksheet(asset_central_objects: List, worksheet):
     """ Update the worksheet with returned IDs in the first column
@@ -333,6 +371,8 @@ def update_worksheet(asset_central_objects: List, worksheet):
                 # check for model since it has a different id
                 if isinstance(obj, Model):
                     value = obj.modelId
+                elif isinstance(obj, Equipment):
+                    value = obj.equipmentId
                 else:
                     value = obj.id
                 # adjust cells to account for header row and 1-based counting
