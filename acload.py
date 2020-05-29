@@ -85,7 +85,7 @@ def delete(datafile):
 
     indicator_group_sheet = wb["Indicator Group"]
     previous_id = ""
-    for iteration, row in enumerate(indicator_group_sheet.iter_rows(min_row=2)):
+    for row in indicator_group_sheet.iter_rows(min_row=2):
         # check for duplicate IDs in the column and clear them
         if previous_id == row[ID].value:
             row[ID].value = ""
