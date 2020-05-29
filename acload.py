@@ -1,12 +1,14 @@
 import click
 
 from openpyxl import load_workbook
-from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, IdString, Template
+from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, \
+    IdString, Template, Model, PrimaryTemplate
 from mapping import *
 from typing import List
 
 @click.group()
 def cli():
+    """ Root for the CLI """
     pass
 
 
@@ -28,7 +30,8 @@ def load(datafile):
     update_worksheet(indicator_groups, wb["Indicator Group"])
     templates = load_templates(indicator_groups, wb["Model Template"])
     update_worksheet(templates, wb["Model Template"])
-
+    models = load_models(templates, wb["Model"])
+    update_worksheet(models, wb["Model"])
     # save the changes
     wb.save(filename=datafile)
 
@@ -45,6 +48,17 @@ def delete(datafile):
     print(f"Opening {datafile}...")
     wb = load_workbook(filename=datafile)
     # do this in the reverse order of the loads due to dependencies
+    model_sheet = wb["Model"]
+    for row in model_sheet.iter_rows(min_row=2):
+        if row[ID].value:
+            model = Model(modelId=row[ID].value)
+            status = model.delete()
+            if status == 204:
+                row[ID].value = ""
+                print(f"Deleted {row[INTERNAL_ID].value}")
+            else:
+                print(f"Could not delete {row[ID].value}")
+
     template_sheet = wb["Model Template"]
     for row in template_sheet.iter_rows(min_row=2):
         if row[ID].value:
@@ -58,7 +72,6 @@ def delete(datafile):
 
     indicator_group_sheet = wb["Indicator Group"]
     previous_id = ""
-    breakpoint()
     for iteration, row in enumerate(indicator_group_sheet.iter_rows(min_row=2)):
         # check for duplicate IDs in the column and clear them
         if previous_id == row[ID].value:
@@ -255,10 +268,49 @@ def load_templates(indicator_groups, template_sheet):
 
     return templates
 
-pass
+def load_models(templates, model_sheet):
+    """ Loads all of the models into AC
 
-def load_models(templates, models):
-    pass
+    Args:
+        templates - list of templates that were loaded
+        model_sheet - worksheet that contains required datafields
+
+    Returns:
+        list of the models that were loaded
+
+    """
+    # open the model sheet and load the objects
+    # loop through the row and get the distinct identifiers
+    models = []
+    for row in model_sheet.iter_rows(min_row=2, values_only=True):
+       # create model and add to list
+       models.append(Model(internalId=row[MOD_INTERNAL_ID],
+            description=row[MOD_DESCRIPTION],
+            templates=row[MOD_TEMPLATE],
+            equipmentTracking=row[MOD_TRACKING],
+            organizationID=row[MOD_ORG]))
+
+    # get the ids for the template in each row
+    for model in models:
+        for template in templates:
+            # get the real id from the indicator group list and replace the temp_id
+            if model.templates == template.internalId:
+                model.templates = [PrimaryTemplate(template.id)]
+                break
+
+    # insert into AC
+    for model in models:
+        print(f"inserting and publishing model {model.internalId}...")
+        try:
+            model.insert()
+            model.publish()
+        except Exception as ex:
+            print(f"failed...error: {ex}")
+        else:
+            print(f"success...id = {model.modelId}")
+
+    return models
+
 
 def load_equipment(models, equipment):
     pass
@@ -270,13 +322,21 @@ def update_worksheet(asset_central_objects: List, worksheet):
         asset_central_objects - a list of objects with ids
         worksheet - the worksheet to be updated
     """
+    # check that we have a list to delete
+    if asset_central_objects is None:
+        return
     # get the internal ids from the spreadsheet
     for iteration, row in enumerate(worksheet.iter_rows(min_row=2, values_only=True)):
         internal_id = row[INTERNAL_ID]
         for obj in asset_central_objects:
             if obj.internalId == internal_id:
+                # check for model since it has a different id
+                if isinstance(obj, Model):
+                    value = obj.modelId
+                else:
+                    value = obj.id
                 # adjust cells to account for header row and 1-based counting
-                worksheet.cell(column=ID+1, row=iteration+2, value=obj.id)
+                worksheet.cell(column=ID+1, row=iteration+2, value=value)
                 break
 
 
