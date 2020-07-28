@@ -5,7 +5,7 @@ ACLoad uploads data from a specific spreadsheet format into indicators, indicato
 ## Installation
 
 Ensure that you have Python installed on your computer.
-Datagen was created with Python 3.8 so that version is best. YMMV with other versions.
+ACLoad was created with Python 3.8 so that version is best. YMMV with other versions.
 
 First, download the code from GitHub:
 

@@ -294,7 +294,6 @@ def test_spreadsheet_data():
             operatorID=org_id)
     status = equipment.insert()
     assert status == 200
-    breakpoint()
     # clean up
     status = equipment.delete()
     assert status == 204
