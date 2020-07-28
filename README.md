@@ -26,6 +26,10 @@ virtualenv venv
 . venv/bin/activate
 pip install .
 ```
+
+A virtual environment is strongly recommended but not mandatory. 
+
+
 ## Configuration
 
 To connect to the SAP Asset Central API, you need to have an API key and the API urls. To get this information, go to https://help.sap.com/viewer/product/SAP_ASSET_INTELLIGENCE_NETWORK/2002/en-US and then navigate to the API Tutorial. Collect the client ID, client secret, base URL and token URL per the instructions. 

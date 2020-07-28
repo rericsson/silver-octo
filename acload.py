@@ -1,10 +1,20 @@
-import click
+"""Loads Asset Central data from a xlsx file into the webservice
 
+"""
+
+# standard imports
+from typing import List
+
+# third party imports
+import click
 from openpyxl import load_workbook
+
+# local imports
+
 from ac_api import Description, IndicatorType, Indicator, IndicatorGroup, \
     IdString, Template, Model, PrimaryTemplate, Equipment
 from mapping import *
-from typing import List
+
 
 @click.group()
 def cli():

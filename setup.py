@@ -3,7 +3,11 @@ from setuptools import setup
 setup(
         name="acload",
         version="0.1",
-        py_modules=["acload"],
+        py_modules=[
+            "ac_api",
+            "acload",
+            "mapping"
+            ],
         install_requires=[
             "Click",
             "dataclasses-json",
